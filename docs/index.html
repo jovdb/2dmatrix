@@ -1,0 +1,578 @@
+<html>
+  <style>
+
+    body {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      font-family: Arial;
+    }
+
+    h1 {
+      font-family: Segoe UI Light, Arial;
+      font-size: 30px;
+    }
+
+    canvas {
+      position: absolute;
+      margin-top: 1em;
+    }
+
+    .buttons {
+      margin: 1em 0;
+    }
+    button {
+      margin: 0 0.2em;
+    }
+
+    table {
+      display: inline-block;
+      margin-bottom: 0.5em;
+    }
+
+    td {
+      text-align: center;
+      cursor: pointer;
+    }
+
+    table tr:nth-child(1) td:nth-child(1) {
+      border-style: solid;
+      border-width: 1px;
+      border-right-width: 0;
+      width: 5px;
+      cursor: default;
+    }
+
+    table tr:nth-child(1) td:nth-child(2),
+    table tr:nth-child(1) td:nth-child(3),
+    table tr:nth-child(1) td:nth-child(4) {
+      width: 30px;
+    }
+
+    table tr:nth-child(1) td:nth-child(5) {
+      border-style: solid;
+      border-width: 1px;
+      border-left-width: 0;
+      width: 5px;
+      cursor: default;
+    }
+
+    #message {
+      margin: 0.5em 0;
+      color: #888;
+      font-size: 80%;
+    }
+
+  </style>
+
+  <h1>Transformation Matrices</h1>
+
+  <div class="buttons">
+    <span>Matrix: </span>
+    <table id='matrix'>
+        <tr>
+          <td rowspan="2"></td>
+          <td id="ux" contentEditable="true" tabindex="100" title="how much of x for resulting x"></td>
+          <td id="vx" contentEditable="true" tabindex="101" title="how much of y for resulting x"></td>
+          <td id="tx" contentEditable="true" tabindex="102" title="offset for resulting x"></td>
+          <td rowspan="2"></td>
+        </tr>
+        <tr>
+          <td id="uy" contentEditable="true" tabindex="103" title="how much of x for resulting y"></td>
+          <td id="vy" contentEditable="true" tabindex="104" title="how much of y for resulting y"></td>
+          <td id="ty" contentEditable="true" tabindex="105" title="offset for resulting y"></td>
+        </tr>
+    </table>
+    <button id="btnReset">Reset</button><br/>
+    <button id="btnScale">Scale</button>
+    <button id="btnRotate">Rotate</button>
+    <button id="btnTranslate">Translate</button>
+    <button id="btnSkew">Skew</button>
+  </div>
+
+  <div id='message'>
+    - You can update the matrix values with up/down keys or enter a value and press &lt;Enter&gt;<br/>- Drag the corners of the blue triangle
+  </div>
+
+  <noscript>
+    Javascript support required!
+  </noscript>
+
+  <div id="preview">
+    <canvas id="original">
+      HTML5 canvas support required!
+    </canvas>
+    <canvas id="transform">
+    </canvas>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <script>
+
+    var oriUx = 1;
+    var oriUy = 0;
+    var oriVx = 0;
+    var oriVy = 1;
+    var oriTx = 0;
+    var oriTy = 0;
+
+    var ux = oriUx;
+    var uy = oriUy;
+    var vx = oriVx;
+    var vy = oriVy;
+    var tx = oriTx;
+    var ty = oriTy;
+
+    // Canvas coordinate to gridCoordinate
+    function getTranslatedScreenPosition(e) {
+
+      var canvas = e.target;
+      var x = e.pageX; // TODO: add touch support
+      var y = e.pageY;
+
+      x -= canvas.offsetLeft;
+      y -= canvas.offsetTop;
+      x /= gridSpacing;
+      y /= gridSpacing;
+      x = Math.round(x) - gridSize/2;
+      y = -(Math.round(y) - gridSize/2);
+      return [x, y];
+    }
+
+    function logValues() {
+        document.getElementById('ux').innerHTML = Math.round(ux * 10) / 10;
+        document.getElementById('uy').innerHTML = Math.round(uy * 10) / 10;
+        document.getElementById('vx').innerHTML = Math.round(vx * 10) / 10;
+        document.getElementById('vy').innerHTML = Math.round(vy * 10) / 10;
+        document.getElementById('tx').innerHTML = Math.round(tx * 10) / 10;
+        document.getElementById('ty').innerHTML = Math.round(ty * 10) / 10;
+    }
+
+    function drawAll(ctx, showGrid, points, theme, ux, uy, vx, vy, tx, ty) {
+
+      function getTranslated(x, y) {
+          return [(tx + x * ux + y * vx) * gridSpacing, (ty + x * uy + y * vy) * gridSpacing];
+      }
+
+      function moveTo(x, y) {
+        ctx.moveTo.apply(ctx, getTranslated(x, y));
+      }
+
+      function lineTo(x, y) {
+        ctx.lineTo.apply(ctx, getTranslated(x, y));
+      }
+
+      function pointAt(x, y, value) {
+        // Circle on translated position, Not stretched
+        var point = getTranslated(x, y);
+
+        ctx.save();
+
+        // Circle
+        ctx.beginPath();
+        ctx.arc(point[0], point[1], gridSpacing / 4, 0, 2 * Math.PI, false);
+        ctx.stroke();
+        ctx.fill();
+
+        // Text
+        ctx.scale(1, -1);
+        ctx.font = (gridSpacing / 2.5) +"px Arial";
+        ctx.fillStyle = "rgb(0,0,0)";
+        ctx.fillText(value, point[0] - 5, -point[1] + 5);
+
+        ctx.restore();
+      }
+
+
+      function drawGrid() {
+
+        // Get Context
+        ctx.save();
+
+        // Draw Grid
+        ctx.beginPath();
+
+        for (var i = -gridSize/2; i <= gridSize/2; i++) { // Only even numbers
+
+          // Horizontal lines
+          moveTo(-gridSize/2, i);
+          lineTo(gridSize/2 , i);
+
+          // Vertical lines
+          moveTo(i, -gridSize/2);
+          lineTo(i, gridSize/2);
+
+        }
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = theme.strokeStyle;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawUnitCoordinates() {
+
+        // unit
+        ctx.strokeStyle = theme.strokeStyle;
+        ctx.fillStyle = theme.strokeStyle;
+        ctx.lineCap = 'round';
+        ctx.lineWidth = 3;
+
+        ctx.beginPath();
+        moveTo(0, 0);
+        lineTo(1, 0);
+        moveTo(0, 0);
+        lineTo(0, 1);
+        ctx.stroke();
+
+        ctx.beginPath();
+        moveTo(1, 0);
+        lineTo(0.7, -0.2);
+        lineTo(0.7, 0.2);
+        ctx.fill();
+
+        ctx.beginPath();
+        moveTo(0, 1);
+        lineTo(-0.2, 0.7);
+        lineTo(0.2, 0.7);
+        ctx.fill();
+      }
+
+      function drawShape() {
+
+        var i, point, x, y;
+
+        ctx.strokeStyle = theme.strokeStyle;
+        ctx.fillStyle = theme.fillStyle;
+        ctx.lineWidth = 3;
+
+        // Shape
+        ctx.beginPath();
+        for (i = 0; i < points.length; i++) {
+          point = points[i];
+          x = point[0];
+          y = point[1];
+
+          if (i === 0) {
+            moveTo(x, y);
+          } else {
+            lineTo(x, y);
+          }
+        }
+        lineTo(points[0][0], points[0][1]);
+        ctx.stroke();
+        ctx.fill();
+
+        // Points
+        for (i = 0; i < points.length; i++) {
+          point = points[i];
+          x = point[0];
+          y = point[1];
+
+          ctx.fillStyle = theme.dotFillStyle || 'white';
+          pointAt(x, y, i + 1);
+        }
+      }
+
+      var originX = gridSpacing * gridSize / 2;
+      var originY = originX;
+
+      // Clear the canvas.
+      ctx.clearRect(0, 0, 1000, 1000);
+
+      // Set Origin in center of Grid
+      ctx.save();
+      ctx.translate(originX + 0.5, originY + 0.5);
+      ctx.scale(1, -1);
+
+      if (showGrid) drawGrid();
+
+      drawShape();
+      drawUnitCoordinates();
+      ctx.restore();
+    }
+
+    var gridSpacing = 40;
+    var gridSize = 12;
+
+
+    var themeBlue = {
+      strokeStyle: 'rgb(96, 96, 255)',
+      fillStyle: 'rgba(96, 96, 255, 0.6)',
+      dotFillStyle: 'rgb(190, 190, 255)'
+    };
+
+    var themeRed = {
+      strokeStyle: 'rgb(255, 96, 96)',
+      fillStyle: 'rgba(255, 96, 96, 0.6)',
+      dotFillStyle: 'rgb(255, 190, 190)'
+    };
+
+    var shape = [[3, 0], [0, 4], [-2, 2]];
+
+    // Canvas
+    var canvas = document.getElementById("original");
+    canvas.width = gridSize * gridSpacing + 1;
+    canvas.height = gridSize * gridSpacing + 1;
+    drawAll(canvas.getContext("2d"), true, shape, themeBlue, oriUx, oriUy, oriVx, oriVy, oriTx, oriTy);
+
+    // Canvas
+    var tranformCanvas = document.getElementById("transform");
+    tranformCanvas.width = gridSize * gridSpacing + 1;
+    tranformCanvas.height = gridSize * gridSpacing + 1;
+
+    function animate(fromUx, fromUy, fromVx, fromVy, fromTx, fromTy, toUx, toUy, toVx, toVy, toTx, toTy, nbrOfSteps, done) {
+      nbrOfSteps = nbrOfSteps || 200;
+
+      var ctx = tranformCanvas.getContext("2d");
+      var stepCount = 0;
+      var deltaUx = toUx - fromUx;
+      var deltaUy = toUy - fromUy;
+      var deltaVx = toVx - fromVx;
+      var deltaVy = toVy - fromVy;
+      var deltaTx = toTx - fromTx;
+      var deltaTy = toTy - fromTy;
+
+      if (deltaUx + deltaUy + deltaVx + deltaVy + deltaTx + deltaTy === 0) {
+          if (done) done();
+          return;
+      }
+
+      function drawStep() {
+
+        logValues();
+
+        // easing curve
+        var ratio = 1 - (Math.cos(Math.PI / nbrOfSteps * stepCount) + 1) / 2;
+
+        ux = fromUx + deltaUx * ratio;
+        uy = fromUy + deltaUy * ratio;
+        vx = fromVx + deltaVx * ratio;
+        vy = fromVy + deltaVy * ratio;
+        tx = fromTx + deltaTx * ratio;
+        ty = fromTy + deltaTy * ratio;
+
+        var showGrid = (stepCount !== nbrOfSteps); // hide grid at the end
+        drawAll(ctx, showGrid, shape, themeRed, ux, uy, vx, vy, tx, ty);
+
+        if (stepCount < nbrOfSteps) {
+          stepCount++;
+          window.requestAnimationFrame(function() {
+            drawStep();
+          });
+        } else {
+          if (done) done();
+        }
+      }
+
+      drawStep();
+    }
+
+    function animateReset(done) {
+
+      if (ux === oriUx && uy === oriUy && vx === oriVx && vy === oriVy && tx === oriTx && ty === oriTy) {
+        if (done) done();
+        return;
+      }
+
+      animate(ux, uy, vx, vy, tx, ty, oriUx, oriUy, oriVx, oriVy, oriTx, oriTy, 50, function() {
+        if (done) done();
+      });
+    }
+
+    function reset() {
+      tranformCanvas.getContext("2d").clearRect(0, 0, 1000, 1000);
+      ux = oriUx;
+      uy = oriUy;
+      vx = oriVx;
+      vy = oriVy;
+      tx = oriTx;
+      ty = oriTy;
+    }
+
+    document.getElementById('btnReset').onclick = function() {animateReset(function() {tranformCanvas.getContext("2d").clearRect(0, 0, 1000, 1000);});};
+    document.getElementById('btnScale').onclick = function() {animateReset(function() {animate(ux, uy, vx, vy, tx, ty, oriUx*2, oriUy, oriVx, oriVy/2, oriTx, oriTy, 100);});};
+    document.getElementById('btnRotate').onclick = function() {animateReset(function() {animate(ux, uy, vx, vy, tx, ty, oriUy, oriUx, -oriVy, oriVx, oriTx, oriTy, 100);});};
+    document.getElementById('btnTranslate').onclick = function() {animateReset(function() {animate(ux, uy, vx, vy, tx, ty, oriUx, oriUy, oriVx, oriVy, oriTx - 1, oriTy - 3, 100);});};
+    document.getElementById('btnSkew').onclick = function() {animateReset(function() {animate(ux, uy, vx, vy, tx, ty, oriUx, oriUy + 0.2, oriVx + 0.2, oriVy, oriTx, oriTy, 100);});};
+    document.getElementById('matrix').addEventListener('keydown', function(e) {
+
+      //allowed codes: backspace, delete, tab, ...
+      if ([46, 8, 9, 27, 35, 36, 37, 39, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 109, 110, 190].indexOf(e.keyCode) >= 0) return;
+      if (e.keyCode == 65 && e.ctrlKey === true) return; // Ctrl-A
+
+      // Enter = animate
+      if (e.keyCode === 13) {
+        animate(ux, uy, vx, vy, tx, ty,
+          parseFloat(document.getElementById("ux").innerHTML) || 0,
+          parseFloat(document.getElementById("uy").innerHTML) || 0,
+          parseFloat(document.getElementById("vx").innerHTML) || 0,
+          parseFloat(document.getElementById("vy").innerHTML) || 0,
+          parseFloat(document.getElementById("tx").innerHTML) || 0,
+          parseFloat(document.getElementById("ty").innerHTML) || 0, 100);
+      }
+
+      // Up / down = in/decrement 0.1
+      if (e.keyCode === 38 || e.keyCode === 40) {
+
+        var incr = 0.1;
+        if (e.keyCode === 40) incr = 0 - incr;
+        e.target.innerHTML = Math.round(((parseFloat(e.target.innerHTML) || 0) + incr) * 10) / 10;
+
+        ux = parseFloat(document.getElementById("ux").innerHTML) || 0,
+        uy = parseFloat(document.getElementById("uy").innerHTML) || 0,
+        vx = parseFloat(document.getElementById("vx").innerHTML) || 0,
+        vy = parseFloat(document.getElementById("vy").innerHTML) || 0,
+        tx = parseFloat(document.getElementById("tx").innerHTML) || 0,
+        ty = parseFloat(document.getElementById("ty").innerHTML) || 0
+
+        var showGrid = false;
+        drawAll(tranformCanvas.getContext("2d"), showGrid, shape, themeRed, ux, uy, vx, vy, tx, ty);
+      }
+
+      e.preventDefault(); // Ignore the rest
+    }, false);
+
+    var dragPointIndex = -1;
+    var dragPointX = 0;
+    var dragPointY = 0;
+
+    function findPointInShape(point) {
+      for (var i = 0; i < shape.length; i++) {
+        var findPoint = shape[i];
+        if (findPoint[0] === point[0] && findPoint[1] === point[1]) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    // Add drag support
+    document.addEventListener('mousedown', function(e) {
+      if (e.target.id === 'transform') {
+        var point = getTranslatedScreenPosition(e);
+
+        dragPointIndex = findPointInShape(point);
+        if (dragPointIndex >= 0) {
+          reset();
+          dragPointX = shape[dragPointIndex][0];
+          dragPointY = shape[dragPointIndex][1];
+        }
+      }
+    }, false);
+
+    document.addEventListener('mousemove', function(e) {
+      var point;
+      if (dragPointIndex >= 0) { // Left button
+        if (e.target.id === 'transform') {
+          point = getTranslatedScreenPosition(e);
+          if (findPointInShape(point) < 0) {
+            shape[dragPointIndex] = point;
+            drawAll(canvas.getContext("2d"), true, shape, themeBlue, oriUx, oriUy, oriVx, oriVy, oriTx, oriTy);
+          }
+        }
+      } else {
+        point = getTranslatedScreenPosition(e);
+        document.body.style.cursor = findPointInShape(point) >= 0 ? 'pointer': 'default';
+      }
+    }, false);
+
+    document.addEventListener('mouseup', function() {
+      dragPointIndex = -1;
+      document.body.style.cursor = 'default';
+    }, false);
+
+    logValues();
+
+  </script>
+
+</html>
